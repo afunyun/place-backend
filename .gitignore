@@ -5,3 +5,4 @@ wrangler.*
 *.tsbuildinfo
 *.d.ts
 .json
+bun.lock
