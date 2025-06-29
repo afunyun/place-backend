@@ -85,7 +85,7 @@ app.all(/pixel.*/, (c) => c.redirect("/pixel", 301));
 app.all(/ws.*/, (c) => c.redirect("/ws", 301));
 
 // Forward all grid-related, real-time, and asset requests to the Durable Object or Assets binding
-["/grid", "/pixel", "/ws"].forEach((p) =>
+["/grid", "/pixel", "/ws", "/batch-update"].forEach((p) =>
   app.all(p, (c) => {
     const stub = c.env.GRID_STATE.get(c.env.GRID_STATE.idFromName("global"));
     return stub.fetch(c.req.raw);
@@ -237,6 +237,49 @@ export class GridDurableObject {
         return new Response(JSON.stringify({ message: "Invalid JSON" }), { status: 400, headers: corsHeaders });
       }
     }
+
+    // Batch update endpoint for the restore script
+    if (url.pathname === "/batch-update" && request.method === "POST") {
+      const secret = request.headers.get('X-Admin-Secret');
+      if (secret !== this.env.RESTORE_SECRET) {
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+      }
+
+      try {
+        const pixels = await request.json();
+        if (!Array.isArray(pixels)) {
+          return new Response(JSON.stringify({ success: false, message: "Invalid payload, expected an array of pixels." }), { status: 400, headers: corsHeaders });
+        }
+
+        let updateCount = 0;
+        const pixelUpdates = new Map();
+
+        for (const { x, y, color } of pixels) {
+          if (x >= 0 && x < 500 && y >= 0 && y < 500 && this.colorIndex.hasOwnProperty(color)) {
+            this.grid[y][x] = color;
+            pixelUpdates.set(`pixel:${y}:${x}`, color);
+            updateCount++;
+          }
+        }
+
+        // Batch persist all changed pixels
+        if (pixelUpdates.size > 0) {
+          await this.state.storage.put(pixelUpdates);
+        }
+
+        console.log(`Batch update: ${updateCount} pixels updated.`);
+
+        // Broadcasting might be too much for large batches, so just send a generic update signal
+        this.broadcast({ type: "grid-refreshed" });
+
+        return new Response(JSON.stringify({ success: true, count: updateCount }), { headers: corsHeaders });
+
+      } catch (e) {
+        console.error("Batch update error:", e);
+        return new Response(JSON.stringify({ success: false, message: "Error processing batch." }), { status: 500, headers: corsHeaders });
+      }
+    }
+
     return new Response("Not Found", { status: 404 });
   }
 
@@ -290,7 +333,7 @@ function extractBearerToken(request) {
   return authHeader.substring(7);
 }
 
-async function validateDiscordToken(token, env) {
+async function validateDiscordToken(token, _env) {
   try {
     const response = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${token}` },
