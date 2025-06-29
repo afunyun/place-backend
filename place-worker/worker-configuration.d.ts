@@ -68,8 +68,8 @@ declare class DOMException extends Error {
     static readonly TIMEOUT_ERR: number;
     static readonly INVALID_NODE_TYPE_ERR: number;
     static readonly DATA_CLONE_ERR: number;
-    get stack(): any;
-    set stack(value: any);
+    get stack(): string | undefined;
+    set stack(value: string | undefined);
 }
 type WorkerGlobalScopeEventMap = {
     fetch: FetchEvent;
@@ -83,7 +83,7 @@ declare abstract class WorkerGlobalScope extends EventTarget<WorkerGlobalScopeEv
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console) */
 interface Console {
-    assert(condition?: boolean, ...data: any[]): void;
+    assert(condition?: boolean, ...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/clear_static) */
     clear(): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/count_static) */
@@ -91,36 +91,36 @@ interface Console {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/countReset_static) */
     countReset(label?: string): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/debug_static) */
-    debug(...data: any[]): void;
+    debug(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/dir_static) */
-    dir(item?: any, options?: any): void;
+    dir(item?: unknown, options?: Record<string, unknown>): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/dirxml_static) */
-    dirxml(...data: any[]): void;
+    dirxml(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/error_static) */
-    error(...data: any[]): void;
+    error(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/group_static) */
-    group(...data: any[]): void;
+    group(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/groupCollapsed_static) */
-    groupCollapsed(...data: any[]): void;
+    groupCollapsed(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/groupEnd_static) */
     groupEnd(): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/info_static) */
-    info(...data: any[]): void;
+    info(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/log_static) */
-    log(...data: any[]): void;
+    log(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/table_static) */
-    table(tabularData?: any, properties?: string[]): void;
+    table(tabularData?: unknown, properties?: string[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/time_static) */
     time(label?: string): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/timeEnd_static) */
     timeEnd(label?: string): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/timeLog_static) */
-    timeLog(label?: string, ...data: any[]): void;
+    timeLog(label?: string, ...data: unknown[]): void;
     timeStamp(label?: string): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/trace_static) */
-    trace(...data: any[]): void;
+    trace(...data: unknown[]): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/warn_static) */
-    warn(...data: any[]): void;
+    warn(...data: unknown[]): void;
 }
 declare const console: Console;
 type BufferSource = ArrayBufferView | ArrayBuffer;
@@ -397,11 +397,12 @@ declare const performance: Performance;
 declare const Cloudflare: Cloudflare;
 declare const origin: string;
 declare const navigator: Navigator;
-type TestController = {};
+type TestController = Record<string, unknown>;
+
 interface ExecutionContext {
-    waitUntil(promise: Promise<any>): void;
+    waitUntil(promise: Promise<unknown>): void;
     passThroughOnException(): void;
-    props: any;
+    props: Record<string, unknown>;
 }
 type ExportedHandlerFetchHandler<Env = unknown, CfHostMetadata = unknown> = (
     request: Request<CfHostMetadata, IncomingRequestCfProperties<CfHostMetadata>>,
@@ -453,14 +454,14 @@ interface ExportedHandler<
     queue?: ExportedHandlerQueueHandler<Env, QueueHandlerMessage>;
 }
 interface StructuredSerializeOptions {
-    transfer?: any[];
+    transfer?: Transferable[];
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/PromiseRejectionEvent) */
 declare abstract class PromiseRejectionEvent extends Event {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/PromiseRejectionEvent/promise) */
-    readonly promise: Promise<any>;
+    readonly promise: Promise<unknown>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/PromiseRejectionEvent/reason) */
-    readonly reason: any;
+    readonly reason: unknown;
 }
 declare abstract class Navigator {
     sendBeacon(
@@ -561,7 +562,7 @@ interface DurableObjectNamespaceGetDurableObjectOptions {
     locationHint?: DurableObjectLocationHint;
 }
 interface DurableObjectState {
-    waitUntil(promise: Promise<any>): void;
+    waitUntil(promise: Promise<unknown>): void;
     readonly id: DurableObjectId;
     readonly storage: DurableObjectStorage;
     container?: Container;
@@ -878,7 +879,7 @@ interface EventTargetAddEventListenerOptions {
     signal?: AbortSignal;
 }
 interface EventTargetHandlerObject {
-    handleEvent: (event: Event) => any | undefined;
+    handleEvent: (event: Event) => unknown;
 }
 /**
  * A controller object that allows you to abort one or more DOM requests as and when desired.
@@ -898,7 +899,7 @@ declare class AbortController {
      *
      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortController/abort)
      */
-    abort(reason?: any): void;
+    abort(reason?: unknown): void;
 }
 /**
  * A signal object that allows you to communicate with a DOM request (such as a Fetch) and abort it if required via an AbortController object.
@@ -907,7 +908,7 @@ declare class AbortController {
  */
 declare abstract class AbortSignal extends EventTarget {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_static) */
-    static abort(reason?: any): AbortSignal;
+    static abort(reason?: unknown): AbortSignal;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/timeout_static) */
     static timeout(delay: number): AbortSignal;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/any_static) */
@@ -919,11 +920,11 @@ declare abstract class AbortSignal extends EventTarget {
      */
     get aborted(): boolean;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/reason) */
-    get reason(): any;
+    get reason(): unknown;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_event) */
-    get onabort(): any | null;
+    get onabort(): ((event: Event) => void) | null;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_event) */
-    set onabort(value: any | null);
+    set onabort(value: ((event: Event) => void) | null);
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/throwIfAborted) */
     throwIfAborted(): void;
 }
@@ -940,10 +941,10 @@ interface SchedulerWaitOptions {
  */
 declare abstract class ExtendableEvent extends Event {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ExtendableEvent/waitUntil) */
-    waitUntil(promise: Promise<any>): void;
+    waitUntil(promise: Promise<unknown>): void;
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/CustomEvent) */
-declare class CustomEvent<T = any> extends Event {
+declare class CustomEvent<T = unknown> extends Event {
     constructor(type: string, init?: CustomEventCustomEventInit);
     /**
      * Returns any custom data event was created with. Typically used for synthetic events.
@@ -956,7 +957,7 @@ interface CustomEventCustomEventInit {
     bubbles?: boolean;
     cancelable?: boolean;
     composed?: boolean;
-    detail?: any;
+    detail?: unknown;
 }
 /**
  * A file-like object of immutable, raw data. Blobs represent data that isn't necessarily in a JavaScript-native format. The File interface is based on Blob, inheriting blob functionality and expanding it to support files on the user's system.
@@ -1370,14 +1371,15 @@ declare class ErrorEvent extends Event {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ErrorEvent/colno) */
     get colno(): number;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ErrorEvent/error) */
-    get error(): any;
+    get error(): unknown;
 }
+
 interface ErrorEventErrorEventInit {
     message?: string;
     filename?: string;
     lineno?: number;
     colno?: number;
-    error?: any;
+    error?: unknown;
 }
 /**
  * Provides a way to easily construct a set of key/value pairs representing form fields and their values, which can then be easily sent using the XMLHttpRequest.send() method. It uses the same format a form would use if the encoding type were set to "multipart/form-data".
@@ -1640,7 +1642,7 @@ interface ResponseInit {
     status?: number;
     statusText?: string;
     headers?: HeadersInit;
-    cf?: any;
+    cf?: unknown;
     webSocket?: WebSocket | null;
     encodeBody?: "automatic" | "manual";
 }
@@ -1893,7 +1895,7 @@ interface KVNamespaceGetOptions<Type> {
 interface KVNamespacePutOptions {
     expiration?: number;
     expirationTtl?: number;
-    metadata?: any | null;
+    metadata?: unknown;
 }
 interface KVNamespaceGetWithMetadataResult<Value, Metadata> {
     value: Value | null;
@@ -2128,28 +2130,30 @@ interface ScheduledController {
     readonly cron: string;
     noRetry(): void;
 }
-interface QueuingStrategy<T = any> {
+interface QueuingStrategy<T = unknown> {
     highWaterMark?: number | bigint;
     size?: (chunk: T) => number | bigint;
 }
-interface UnderlyingSink<W = any> {
+interface UnderlyingSink<W = unknown> {
     type?: string;
     start?: (controller: WritableStreamDefaultController) => void | Promise<void>;
     write?: (
         chunk: W,
         controller: WritableStreamDefaultController,
     ) => void | Promise<void>;
-    abort?: (reason: any) => void | Promise<void>;
+    abort?: (reason: unknown) => void | Promise<void>;
     close?: () => void | Promise<void>;
 }
+
 interface UnderlyingByteSource {
     type: "bytes";
     autoAllocateChunkSize?: number;
     start?: (controller: ReadableByteStreamController) => void | Promise<void>;
     pull?: (controller: ReadableByteStreamController) => void | Promise<void>;
-    cancel?: (reason: any) => void | Promise<void>;
+    cancel?: (reason: unknown) => void | Promise<void>;
 }
-interface UnderlyingSource<R = any> {
+
+interface UnderlyingSource<R = unknown> {
     type?: "" | undefined;
     start?: (
         controller: ReadableStreamDefaultController<R>,
@@ -2157,10 +2161,11 @@ interface UnderlyingSource<R = any> {
     pull?: (
         controller: ReadableStreamDefaultController<R>,
     ) => void | Promise<void>;
-    cancel?: (reason: any) => void | Promise<void>;
+    cancel?: (reason: unknown) => void | Promise<void>;
     expectedLength?: number | bigint;
 }
-interface Transformer<I = any, O = any> {
+
+interface Transformer<I = unknown, O = unknown> {
     readableType?: string;
     writableType?: string;
     start?: (
@@ -2173,7 +2178,7 @@ interface Transformer<I = any, O = any> {
     flush?: (
         controller: TransformStreamDefaultController<O>,
     ) => void | Promise<void>;
-    cancel?: (reason: any) => void | Promise<void>;
+    cancel?: (reason: unknown) => void | Promise<void>;
     expectedLength?: number;
 }
 interface StreamPipeOptions {
@@ -2213,11 +2218,11 @@ type ReadableStreamReadResult<R = any> =
  *
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStream)
  */
-interface ReadableStream<R = any> {
+interface ReadableStream<R = unknown> {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStream/locked) */
     get locked(): boolean;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStream/cancel) */
-    cancel(reason?: any): Promise<void>;
+    cancel(reason?: unknown): Promise<void>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStream/getReader) */
     getReader(): ReadableStreamDefaultReader<R>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStream/getReader) */
@@ -2303,7 +2308,7 @@ declare abstract class ReadableStreamBYOBRequest {
     get atLeast(): number | null;
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStreamDefaultController) */
-declare abstract class ReadableStreamDefaultController<R = any> {
+declare abstract class ReadableStreamDefaultController<R = unknown> {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStreamDefaultController/desiredSize) */
     get desiredSize(): number | null;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStreamDefaultController/close) */
@@ -2311,7 +2316,7 @@ declare abstract class ReadableStreamDefaultController<R = any> {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStreamDefaultController/enqueue) */
     enqueue(chunk?: R): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableStreamDefaultController/error) */
-    error(reason: any): void;
+    error(reason: unknown): void;
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableByteStreamController) */
 declare abstract class ReadableByteStreamController {
@@ -2324,7 +2329,7 @@ declare abstract class ReadableByteStreamController {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableByteStreamController/enqueue) */
     enqueue(chunk: ArrayBuffer | ArrayBufferView): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableByteStreamController/error) */
-    error(reason: any): void;
+    error(reason: unknown): void;
 }
 /**
  * This Streams API interface represents a controller allowing control of a WritableStream's state. When constructing a WritableStream, the underlying sink is given a corresponding WritableStreamDefaultController instance to manipulate.
@@ -2335,16 +2340,16 @@ declare abstract class WritableStreamDefaultController {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultController/signal) */
     get signal(): AbortSignal;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultController/error) */
-    error(reason?: any): void;
+    error(reason?: unknown): void;
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/TransformStreamDefaultController) */
-declare abstract class TransformStreamDefaultController<O = any> {
+declare abstract class TransformStreamDefaultController<O = unknown> {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/TransformStreamDefaultController/desiredSize) */
     get desiredSize(): number | null;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/TransformStreamDefaultController/enqueue) */
     enqueue(chunk?: O): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/TransformStreamDefaultController/error) */
-    error(reason: any): void;
+    error(reason: unknown): void;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/TransformStreamDefaultController/terminate) */
     terminate(): void;
 }
@@ -2362,7 +2367,7 @@ interface ReadableWritablePair<R = any, W = any> {
  *
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStream)
  */
-declare class WritableStream<W = any> {
+declare class WritableStream<W = unknown> {
     constructor(
         underlyingSink?: UnderlyingSink,
         queuingStrategy?: QueuingStrategy,
@@ -2370,7 +2375,7 @@ declare class WritableStream<W = any> {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStream/locked) */
     get locked(): boolean;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStream/abort) */
-    abort(reason?: any): Promise<void>;
+    abort(reason?: unknown): Promise<void>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStream/close) */
     close(): Promise<void>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStream/getWriter) */
@@ -2381,7 +2386,7 @@ declare class WritableStream<W = any> {
  *
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter)
  */
-declare class WritableStreamDefaultWriter<W = any> {
+declare class WritableStreamDefaultWriter<W = unknown> {
     constructor(stream: WritableStream);
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter/closed) */
     get closed(): Promise<void>;
@@ -2390,7 +2395,7 @@ declare class WritableStreamDefaultWriter<W = any> {
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter/desiredSize) */
     get desiredSize(): number | null;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter/abort) */
-    abort(reason?: any): Promise<void>;
+    abort(reason?: unknown): Promise<void>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter/close) */
     close(): Promise<void>;
     /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter/write) */
@@ -2399,7 +2404,7 @@ declare class WritableStreamDefaultWriter<W = any> {
     releaseLock(): void;
 }
 /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/TransformStream) */
-declare class TransformStream<I = any, O = any> {
+declare class TransformStream<I = unknown, O = unknown> {
     constructor(
         transformer?: Transformer<I, O>,
         writableStrategy?: QueuingStrategy<I>,

@@ -1,15 +1,22 @@
-// Grid configuration constants
+/**
+ * Grid configuration constants
+ */
 const GRID_WIDTH = 500;
 const GRID_HEIGHT = 500;
 
-// CORS headers for all responses
+/**
+ * CORS headers for all responses
+ */
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Main Worker export
+/**
+ * Main Cloudflare Worker export
+ * Handles HTTP requests and routes them to appropriate handlers
+ */
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -18,7 +25,7 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
-        headers: corsHeaders
+        headers: corsHeaders,
       });
     }
 
@@ -30,13 +37,13 @@ export default {
       // Add CORS headers to the response
       const responseHeaders = {
         ...corsHeaders,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       };
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: responseHeaders
+        headers: responseHeaders,
       });
     }
 
@@ -48,13 +55,13 @@ export default {
       // Add CORS headers to the response
       const responseHeaders = {
         ...corsHeaders,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       };
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: responseHeaders
+        headers: responseHeaders,
       });
     }
 
@@ -77,12 +84,15 @@ export default {
     // Default 404 response
     return new Response('Not Found', {
       status: 404,
-      headers: corsHeaders
+      headers: corsHeaders,
     });
-  }
+  },
 };
 
-// GridDurableObject class for managing grid state
+/**
+ * GridDurableObject class for managing grid state
+ * Handles persistent storage and WebSocket connections
+ */
 export class GridDurableObject {
   constructor(state, env) {
     this.state = state;
@@ -106,7 +116,7 @@ export class GridDurableObject {
 
       return new Response(null, {
         status: 101,
-        webSocket: client
+        webSocket: client,
       });
     }
 
@@ -118,7 +128,7 @@ export class GridDurableObject {
     // Handle GET /grid
     if (url.pathname === '/grid' && request.method === 'GET') {
       return new Response(JSON.stringify(this.grid), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -128,14 +138,24 @@ export class GridDurableObject {
         const { x, y, color } = await request.json();
 
         // Validate input
-        if (x == null || y == null || !color ||
-          x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) {
+        if (
+          x == null ||
+          y == null ||
+          !color ||
+          x < 0 ||
+          x >= GRID_WIDTH ||
+          y < 0 ||
+          y >= GRID_HEIGHT
+        ) {
           return new Response(
-            JSON.stringify({ message: 'Invalid pixel data. Coordinates or color missing/out of bounds.' }),
+            JSON.stringify({
+              message:
+                'Invalid pixel data. Coordinates or color missing/out of bounds.',
+            }),
             {
               status: 400,
-              headers: { 'Content-Type': 'application/json' }
-            }
+              headers: { 'Content-Type': 'application/json' },
+            },
           );
         }
 
@@ -155,17 +175,14 @@ export class GridDurableObject {
           JSON.stringify({ message: 'Pixel updated successfully' }),
           {
             status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          }
+            headers: { 'Content-Type': 'application/json' },
+          },
         );
       } catch {
-        return new Response(
-          JSON.stringify({ message: 'Invalid JSON data' }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        return new Response(JSON.stringify({ message: 'Invalid JSON data' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
     }
 
@@ -176,7 +193,9 @@ export class GridDurableObject {
     console.log('Loading grid from durable storage...');
 
     // Initialize default grid (white background)
-    this.grid = Array(GRID_HEIGHT).fill(0).map(() => Array(GRID_WIDTH).fill('#FFFFFF'));
+    this.grid = Array(GRID_HEIGHT)
+      .fill(0)
+      .map(() => Array(GRID_WIDTH).fill('#FFFFFF'));
 
     // Load individual pixels from storage
     const pixels = await this.state.storage.list({ prefix: 'pixel:' });
@@ -186,7 +205,12 @@ export class GridDurableObject {
       const pixelX = parseInt(x);
       const pixelY = parseInt(y);
 
-      if (pixelX >= 0 && pixelX < GRID_WIDTH && pixelY >= 0 && pixelY < GRID_HEIGHT) {
+      if (
+        pixelX >= 0 &&
+        pixelX < GRID_WIDTH &&
+        pixelY >= 0 &&
+        pixelY < GRID_HEIGHT
+      ) {
         this.grid[pixelY][pixelX] = color;
       }
     }
@@ -202,7 +226,10 @@ export class GridDurableObject {
 
     webSocket.addEventListener('close', () => {
       this.sessions.delete(webSocket);
-      console.log('WebSocket disconnected. Total sessions:', this.sessions.size);
+      console.log(
+        'WebSocket disconnected. Total sessions:',
+        this.sessions.size,
+      );
     });
 
     webSocket.addEventListener('error', (error) => {
@@ -219,42 +246,48 @@ export class GridDurableObject {
       }
 
       const webhookPayload = {
-        embeds: [{
-          title: "🎨 New Pixel Placed!",
-          color: parseInt(color.replace('#', ''), 16),
-          fields: [
-            {
-              name: "Position",
-              value: `(${x}, ${y})`,
-              inline: true
+        embeds: [
+          {
+            title: '🎨 New Pixel Placed!',
+            color: parseInt(color.replace('#', ''), 16),
+            fields: [
+              {
+                name: 'Position',
+                value: `(${x}, ${y})`,
+                inline: true,
+              },
+              {
+                name: 'Color',
+                value: color.toUpperCase(),
+                inline: true,
+              },
+              {
+                name: 'Timestamp',
+                value: new Date().toISOString(),
+                inline: true,
+              },
+            ],
+            thumbnail: {
+              url: `https://singlecolorimage.com/get/${color.replace('#', '')}/100x100`,
             },
-            {
-              name: "Color",
-              value: color.toUpperCase(),
-              inline: true
-            },
-            {
-              name: "Timestamp",
-              value: new Date().toISOString(),
-              inline: true
-            }
-          ],
-          thumbnail: {
-            url: `https://singlecolorimage.com/get/${color.replace('#', '')}/100x100`
-          }
-        }]
+          },
+        ],
       };
 
       const response = await fetch(this.env.DISCORD_WEBHOOK_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(webhookPayload)
+        body: JSON.stringify(webhookPayload),
       });
 
       if (!response.ok) {
-        console.error('Discord webhook failed:', response.status, await response.text());
+        console.error(
+          'Discord webhook failed:',
+          response.status,
+          await response.text(),
+        );
       }
     } catch (error) {
       console.error('Error sending Discord webhook:', error);
