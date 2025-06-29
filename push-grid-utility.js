@@ -123,14 +123,6 @@ async function pushGridToWorker(options = {}) {
 				if (response.ok) {
 					successCount++;
 					return { success: true, update };
-				} else {
-					const errorText = await response.text();
-					failCount++;
-					return {
-						success: false,
-						update,
-						error: `${response.status}: ${errorText}`,
-					};
 				}
 			} catch (error) {
 				failCount++;
@@ -218,10 +210,10 @@ function parseArgs() {
 				options.gridFile = args[++i];
 				break;
 			case "--batch-size":
-				options.batchSize = parseInt(args[++i], 10);
+				options.batchSize = Number.parseInt(args[++i], 10);
 				break;
 			case "--batch-delay":
-				options.batchDelay = parseInt(args[++i], 10);
+				options.batchDelay = Number.parseInt(args[++i], 10);
 				break;
 			case "--dry-run":
 				options.dryRun = true;

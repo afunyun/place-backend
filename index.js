@@ -152,12 +152,10 @@ app.post("/pixel", (req, res) => {
 		y < 0 ||
 		y >= GRID_HEIGHT
 	) {
-		return res
-			.status(400)
-			.json({
-				message:
-					"Invalid pixel data. Coordinates or color missing/out of bounds.",
-			});
+		return res.status(400).json({
+			message:
+				"Invalid pixel data. Coordinates or color missing/out of bounds.",
+		});
 	}
 
 	grid[y][x] = color;

@@ -50,8 +50,6 @@ body {
 	display: block; /* Remove extra space below canvas */
 	/* Crucial for keeping pixels sharp when scaled down */
 	image-rendering: pixelated;
-	image-rendering: crisp-edges;
-	image-rendering: -moz-crisp-edges;
 }
 
 /* NEW: Styles for the Pixel Chat Log */
@@ -151,7 +149,6 @@ body {
 	height: 35px;
 	cursor: pointer;
 	background: none;
-	-webkit-appearance: none;
 	border-radius: 5px;
 	overflow: hidden;
 	position: relative;

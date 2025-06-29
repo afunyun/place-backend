@@ -1,6 +1,4 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/cloudflare-workers";
-import manifest from "__STATIC_CONTENT_MANIFEST";
 
 const PALETTE = [
   "#FFFFFF", // index 0 – background
@@ -82,10 +80,16 @@ app.get("/palette", (c) => {
   app.all(p, (c) => {
     const stub = c.env.GRID_STATE.get(c.env.GRID_STATE.idFromName("global"));
     return stub.fetch(c.req.raw);
-  })
+  }),
 );
 
-app.get("*", serveStatic({ root: "./", manifest }));
+app.get("/callback", async (c) => {
+  return c.env.ASSETS.fetch(new Request("https://dummy.host/callback.html"));
+});
+
+app.get("*", async (c) => {
+  return c.env.ASSETS.fetch(c.req.raw);
+});
 
 export default {
   fetch: app.fetch,
@@ -123,8 +127,8 @@ export class GridDurableObject {
 
       // 2. Run-length encode: [count, colourIndex, count, colourIndex, …]
       const rle = [];
-      let runColour = flat[0],
-        runLen = 1;
+      let runColour = flat[0];
+      let runLen = 1;
       for (let i = 1; i < flat.length; i++) {
         const c = flat[i];
         if (c === runColour && runLen < 255) runLen++;
@@ -146,14 +150,14 @@ export class GridDurableObject {
         if (!token) {
           return new Response(
             JSON.stringify({ message: "Authentication required" }),
-            { status: 401, headers: { "Content-Type": "application/json" } }
+            { status: 401, headers: { "Content-Type": "application/json" } },
           );
         }
-        const user = await validateDiscordToken(this.env, token);
+        const user = await validateDiscordToken(token);
         if (!user) {
           return new Response(
             JSON.stringify({ message: "Invalid or expired token" }),
-            { status: 401, headers: { "Content-Type": "application/json" } }
+            { status: 401, headers: { "Content-Type": "application/json" } },
           );
         }
         const { x, y, color } = await request.json();
@@ -168,7 +172,7 @@ export class GridDurableObject {
         ) {
           return new Response(
             JSON.stringify({ message: "Invalid pixel data" }),
-            { status: 400, headers: { "Content-Type": "application/json" } }
+            { status: 400, headers: { "Content-Type": "application/json" } },
           );
         }
         this.grid[y][x] = color;
@@ -185,7 +189,7 @@ export class GridDurableObject {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      } catch (e) {
+      } catch {
         return new Response(JSON.stringify({ message: "Invalid JSON" }), {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -212,7 +216,7 @@ export class GridDurableObject {
     webSocket.addEventListener("close", () => {
       this.sessions.delete(webSocket);
     });
-    webSocket.addEventListener("error", (error) => {
+    webSocket.addEventListener("error", () => {
       this.sessions.delete(webSocket);
     });
   }
@@ -234,12 +238,12 @@ export class GridDurableObject {
       embeds: [
         {
           title: "🎨 New Pixel Placed!",
-          color: parseInt(color.replace("#", ""), 16),
+          color: Number.parseInt(color.replace("#", ""), 16),
           fields,
           thumbnail: {
             url: `https://singlecolorimage.com/get/${color.replace(
               "#",
-              ""
+              "",
             )}/100x100`,
           },
         },
@@ -256,20 +260,20 @@ export class GridDurableObject {
     for (const session of this.sessions) {
       try {
         session.send(messageStr);
-      } catch (error) {
+      } catch {
         this.sessions.delete(session);
       }
     }
   }
 }
-async function validateDiscordToken(env, token) {
+async function validateDiscordToken(token) {
   try {
     const response = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) return null;
     return await response.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }

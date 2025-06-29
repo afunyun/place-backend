@@ -4,10 +4,10 @@ name = "place-worker"
 main = "src/index.js"
 compatibility_date = "2024-06-20"
 
-# The [site] block is the official way to serve a frontend.
-# This creates the `env.ASSETS` binding that works with Hono's serveStatic.
-[site]
-bucket = "./public"
+# Use assets block instead of site block
+[[assets]]
+binding = "ASSETS"
+directory = "./public"
 
 [[durable_objects.bindings]]
 name = "GRID_STATE"

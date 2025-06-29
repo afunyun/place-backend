@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "place-worker" generated at 2025-06-29T13:39:34.021Z.

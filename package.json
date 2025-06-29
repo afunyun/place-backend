@@ -1,16 +1,11 @@
 {
-	"name": "place-worker",
+	"name": "neuro-place",
+	"version": "1.0.0",
 	"scripts": {
-		"dev": "wrangler dev",
-		"deploy": "wrangler deploy --minify",
-		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
-		"push-grid": "node push-grid-utility.js"
+		"build": "mkdir -p dist && cp -r *.html *.js *.css *.md dist/",
+		"deploy": "wrangler pages deploy dist --project-name neuro-place"
 	},
 	"dependencies": {
-		"cloudflare": "^4.4.1",
-		"hono": "^4.8.3"
-	},
-	"devDependencies": {
 		"wrangler": "^4.22.0"
 	}
 }
