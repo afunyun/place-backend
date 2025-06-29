@@ -13,8 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		console.log("Theme toggle button not found early");
 	}
 
-	const BACKEND_URL = "https://place-worker.afunyun.workers.dev";
-	const WEBSOCKET_URL = "wss://place-worker.afunyun.workers.dev/ws";
+	const BACKEND_URL = window.location.origin;
+	const WEBSOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 	const OAUTH_CLIENT_ID = "1388712213002457118";
 
 	// OAuth redirect URI uses current origin so Discord can redirect back to the frontend
