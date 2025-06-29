@@ -117,8 +117,7 @@ app.post("/auth/discord", async (c) => {
       );
     }
 
-    const discordClientSecret = await c.env.DISCORD_CLIENT_SECRET.get();
-    if (!discordClientSecret) {
+    if (!c.env.DISCORD_CLIENT_SECRET) {
       return c.json(
         { message: "Discord client secret not found" },
         {
@@ -131,7 +130,7 @@ app.post("/auth/discord", async (c) => {
     // Exchange code for access token
     const tokenParams = new URLSearchParams({
       client_id: c.env.DISCORD_CLIENT_ID || "1388712213002457118",
-      client_secret: discordClientSecret,
+      client_secret: c.env.DISCORD_CLIENT_SECRET,
       grant_type: "authorization_code",
       code,
       redirect_uri,
