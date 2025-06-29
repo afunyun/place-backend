@@ -54,6 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	let grid = [];
 	const selectedPixel = { x: null, y: null };
 
+	let CONNECTION_TIMEOUT_MS = 15000;
 	let socket = null;
 	let reconnectAttempts = 0;
 	const MAX_RECONNECT_ATTEMPTS = 5;
@@ -161,23 +162,34 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 
 	async function getGrid() {
-		try {
-			const response = await fetch(`${BACKEND_URL}/grid`);
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
+		return new Promise(async (resolve, reject) => {
+			// Set up timeout for connection failure
+			const timeoutId = setTimeout(() => {
+				reject(new Error("Connection timeout - server may be unavailable"));
+			}, CONNECTION_TIMEOUT_MS);
+
+			try {
+				const response = await fetch(`${BACKEND_URL}/grid`);
+
+				// Clear timeout on successful response
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+
+				const data = await response.json();
+				console.log("Initial grid fetched successfully.");
+				resolve(data);
+			} catch (error) {
+				// Clear timeout to prevent double error handling
+				clearTimeout(timeoutId);
+
+				// Only reject with the actual error, don't show alert here
+				console.error("Error fetching grid:", error);
+				reject(error);
 			}
-			const data = await response.json();
-			console.log("Initial grid fetched successfully.");
-			return data;
-		} catch (error) {
-			console.error("Error fetching grid:", error);
-			alert(
-				"Could not connect to backend to get initial grid. Is your backend running?",
-			);
-			return Array(GRID_HEIGHT)
-				.fill(0)
-				.map(() => Array(GRID_WIDTH).fill("#1a1a1a"));
-		}
+		});
 	}
 
 	async function placePixel(x, y, color) {
@@ -875,96 +887,187 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	function connectWebSocket() {
 		if (socket && socket.readyState === WebSocket.OPEN) {
-			return;
+			return Promise.resolve();
 		}
 
-		try {
-			socket = new WebSocket(WEBSOCKET_URL);
+		return new Promise((resolve, reject) => {
+			isConnecting = true;
 
-			socket.onopen = () => {
-				console.log("Connected to backend WebSocket");
-				addPixelLogEntry("System", "Connected", "#00ff00");
-				reconnectButton.style.display = "none";
-				reconnectButton.disabled = false;
-				reconnectAttempts = 0;
-			};
+			// Set up connection timeout
+			connectionTimeoutId = setTimeout(() => {
+				if (isConnecting) {
+					isConnecting = false;
+					console.error("WebSocket connection timeout");
+					addPixelLogEntry("System", "Connection Timeout", "#ff9900");
+					reject(new Error("WebSocket connection timeout"));
+				}
+			}, CONNECTION_TIMEOUT_MS);
 
-			socket.onmessage = (event) => {
-				try {
-					const data = JSON.parse(event.data);
+			try {
+				socket = new WebSocket(WEBSOCKET_URL);
 
-					if (data.type === "pixelUpdate") {
-						const { x, y, color } = data;
-
-						if (grid[y]?.[x] !== undefined) {
-							grid[y][x] = color;
-						}
-
-						drawPixelToOffscreen(x, y, color);
-
-						if (liveViewPixelData) {
-							const [r, g, b, a] = hexToRgba(color);
-							const targetX = Math.floor(x / LIVE_VIEW_PIXEL_SIZE_FACTOR);
-							const targetY = Math.floor(y / LIVE_VIEW_PIXEL_SIZE_FACTOR);
-							const imageDataIndex =
-								(targetY * LIVE_VIEW_CANVAS_WIDTH + targetX) * 4;
-
-							if (
-								imageDataIndex >= 0 &&
-								imageDataIndex + 3 < liveViewPixelData.length
-							) {
-								liveViewPixelData[imageDataIndex] = r;
-								liveViewPixelData[imageDataIndex + 1] = g;
-								liveViewPixelData[imageDataIndex + 2] = b;
-								liveViewPixelData[imageDataIndex + 3] = a;
-							}
-							liveViewCtx.putImageData(liveViewImageData, 0, 0);
-						}
-
-						drawGrid();
-						addPixelLogEntry(x, y, color);
+				socket.onopen = () => {
+					// Clear timeout on successful connection
+					if (connectionTimeoutId) {
+						clearTimeout(connectionTimeoutId);
+						connectionTimeoutId = null;
 					}
-				} catch (error) {
-					console.error("Error parsing WebSocket message:", error);
+					isConnecting = false;
+
+					console.log("Connected to backend WebSocket");
+					addPixelLogEntry("System", "Connected", "#00ff00");
+					reconnectButton.style.display = "none";
+					reconnectButton.disabled = false;
+					reconnectAttempts = 0;
+					resolve();
+				};
+
+				socket.onmessage = (event) => {
+					try {
+						const data = JSON.parse(event.data);
+
+						if (data.type === "pixelUpdate") {
+							const { x, y, color } = data;
+
+							if (grid[y]?.[x] !== undefined) {
+								grid[y][x] = color;
+							}
+
+							drawPixelToOffscreen(x, y, color);
+
+							if (liveViewPixelData) {
+								const [r, g, b, a] = hexToRgba(color);
+								const targetX = Math.floor(x / LIVE_VIEW_PIXEL_SIZE_FACTOR);
+								const targetY = Math.floor(y / LIVE_VIEW_PIXEL_SIZE_FACTOR);
+								const imageDataIndex =
+									(targetY * LIVE_VIEW_CANVAS_WIDTH + targetX) * 4;
+
+								if (
+									imageDataIndex >= 0 &&
+									imageDataIndex + 3 < liveViewPixelData.length
+								) {
+									liveViewPixelData[imageDataIndex] = r;
+									liveViewPixelData[imageDataIndex + 1] = g;
+									liveViewPixelData[imageDataIndex + 2] = b;
+									liveViewPixelData[imageDataIndex + 3] = a;
+								}
+								liveViewCtx.putImageData(liveViewImageData, 0, 0);
+							}
+
+							drawGrid();
+							addPixelLogEntry(x, y, color);
+						}
+					} catch (error) {
+						console.error("Error parsing WebSocket message:", error);
+					}
+				};
+
+				socket.onclose = (event) => {
+					// Clear timeout if connection was established but then closed
+					if (connectionTimeoutId) {
+						clearTimeout(connectionTimeoutId);
+						connectionTimeoutId = null;
+					}
+					isConnecting = false;
+
+					console.log("WebSocket connection closed:", event.code, event.reason);
+					addPixelLogEntry("System", "Disconnected", "#ff0000");
+
+					if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+						reconnectAttempts++;
+						console.log(
+							`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`,
+						);
+						setTimeout(
+							() => connectWebSocket(),
+							RECONNECT_DELAY * reconnectAttempts,
+						);
+					} else {
+						reconnectButton.style.display = "inline-block";
+						// Only show alert after multiple failed attempts, not on initial connection
+						if (reconnectAttempts > 0) {
+							alert("Connection lost. Please click reconnect to retry.");
+						}
+					}
+				};
+
+				socket.onerror = (error) => {
+					// Clear timeout on error
+					if (connectionTimeoutId) {
+						clearTimeout(connectionTimeoutId);
+						connectionTimeoutId = null;
+					}
+					isConnecting = false;
+
+					console.error("WebSocket error:", error);
+					addPixelLogEntry("System", "Connection Error", "#ff9900");
+					reject(error);
+				};
+			} catch (error) {
+				// Clear timeout on exception
+				if (connectionTimeoutId) {
+					clearTimeout(connectionTimeoutId);
+					connectionTimeoutId = null;
 				}
-			};
+				isConnecting = false;
 
-			socket.onclose = (event) => {
-				console.log("WebSocket connection closed:", event.code, event.reason);
-				addPixelLogEntry("System", "Disconnected", "#ff0000");
+				console.error("Failed to create WebSocket connection:", error);
+				addPixelLogEntry(
+					"System",
+					`Connection Error: ${error.message}`,
+					"#ff9900",
+				);
+				reconnectButton.style.display = "inline-block";
+				reject(error);
+			}
+		});
+	}
 
-				if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-					reconnectAttempts++;
-					console.log(
-						`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`,
-					);
-					setTimeout(
-						() => connectWebSocket(),
-						RECONNECT_DELAY * reconnectAttempts,
-					);
-				} else {
-					reconnectButton.style.display = "inline-block";
-					alert("Connection lost. Please click reconnect to retry.");
-				}
-			};
+	async function connectAndLoadGrid() {
+		try {
+			// First, try to load the grid data
+			console.log("Attempting to load grid data...");
+			grid = await getGrid();
+			console.log("Grid data loaded successfully");
 
-			socket.onerror = (error) => {
-				console.error("WebSocket error:", error);
-				addPixelLogEntry("System", "Connection Error", "#ff9900");
-			};
+			// Then establish WebSocket connection
+			console.log("Attempting to establish WebSocket connection...");
+			await connectWebSocket();
+			console.log("WebSocket connection established successfully");
+
+			return true;
 		} catch (error) {
-			console.error("Failed to create WebSocket connection:", error);
-			addPixelLogEntry(
-				"System",
-				`Connection Error: ${error.message}`,
-				"#ff9900",
-			);
-			reconnectButton.style.display = "inline-block";
+			console.error("Connection failed:", error);
+
+			// Show user-friendly error message based on error type
+			if (error.message.includes("timeout")) {
+				alert("Failed to connect to server – please check your network connection and ensure the server is running.");
+			} else if (error.message.includes("HTTP error")) {
+				alert("Server responded with an error. Please try refreshing the page.");
+			} else {
+				alert("Failed to connect to server. Please check that the backend is running and try again.");
+			}
+
+			// Provide fallback grid if HTTP request failed
+			if (!grid || grid.length === 0) {
+				console.log("Using fallback grid due to connection failure");
+				grid = Array(GRID_HEIGHT)
+					.fill(0)
+					.map(() => Array(GRID_WIDTH).fill("#1a1a1a"));
+			}
+
+			// Show reconnect button for manual retry
+			if (window.reconnectButton) {
+				window.reconnectButton.style.display = "inline-block";
+			}
+
+			return false;
 		}
 	}
 
 	function setupWebSocket() {
-		connectWebSocket();
+		// This function is kept for backward compatibility but now just calls connectWebSocket
+		return connectWebSocket();
 	}
 
 	function isCooldownActive() {
@@ -1097,8 +1200,11 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 		liveViewCtx.imageSmoothingEnabled = false;
 
-		grid = await getGrid();
+		// Use coordinated connection and grid loading
+		const connectionSuccess = await connectAndLoadGrid();
 
+		// Continue with UI setup regardless of connection status
+		// (fallback grid will be used if connection failed)
 		drawFullOffscreenGrid(grid);
 
 		const gridPixelWidth = GRID_WIDTH * PIXEL_SIZE;
@@ -1119,6 +1225,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		drawGrid();
 		drawLiveViewGrid();
+
+		if (connectionSuccess) {
+			console.log("Application initialized with server connection");
+		} else {
+			console.log("Application initialized in offline mode with fallback grid");
+		}
 
 		window.addEventListener("resize", setCanvasSize);
 		canvas.addEventListener("mousedown", handleMouseDown);
@@ -1169,7 +1281,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		window.reconnectButton = createReconnectButton();
 
 		updateSelectedCoordsDisplay();
-		setupWebSocket();
 
 		document.addEventListener("keydown", handleKeyDown);
 

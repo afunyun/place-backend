@@ -1,4 +1,0 @@
-worker-configuration.d.ts
-*.d.ts
-node_modules/
-dist/
