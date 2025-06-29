@@ -1,15 +1,15 @@
 {
-	"name": "place-worker",
-	"scripts": {
-		"dev": "wrangler dev",
-		"deploy": "wrangler deploy --minify",
-		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
-		"push-grid": "node push-grid-utility.js"
-	},
-	"dependencies": {
-		"hono": "^4.8.3"
-	},
-	"devDependencies": {
-		"wrangler": "^4.22.0"
-	}
+  "name": "place-worker",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "push-grid": "node push-grid-utility.js"
+  },
+  "dependencies": {
+    "hono": "^4.8.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.22.0"
+  }
 }

@@ -1,39 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Discord OAuth Callback</title>
+    <script>
+      // Apply dark mode early if set in localStorage
+      (function () {
+        try {
+          if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: sans-serif;
+        background: #fff;
+        color: #222;
+      }
+      .dark body {
+        background: #181a20;
+        color: #eee;
+      }
+    </style>
+  </head>
 
-<head>
-	<meta charset="utf-8" />
-	<title>Discord OAuth Callback</title>
-	<script>
-  // Apply dark mode early if set in localStorage
-  (function() {
-	try {
-	  if (localStorage.getItem('theme') === 'dark') {
-		document.documentElement.classList.add('dark');
-	  }
-	} catch (e) {}
-  })();
-	</script>
-	<style>
-		body {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			height: 100vh;
-			font-family: sans-serif;
-			background: #fff;
-			color: #222;
-		}
-		.dark body {
-			background: #181a20;
-			color: #eee;
-		}
-	</style>
-</head>
-
-<body>
-	<p>Completing authentication…</p>
-	<script type="module" src="oauth-callback.js"></script>
-</body>
-
+  <body>
+    <p>Completing authentication…</p>
+    <script type="module" src="oauth-callback.js"></script>
+  </body>
 </html>

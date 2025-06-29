@@ -43,11 +43,10 @@ async function runMigration() {
         if (response.ok) {
           successCount++;
           return { success: true, update };
-        } else {
-          const error = await response.text();
-          failCount++;
-          return { success: false, update, error };
         }
+        const error = await response.text();
+        failCount++;
+        return { success: false, update, error };
       } catch (error) {
         failCount++;
         return { success: false, update, error: error.message };

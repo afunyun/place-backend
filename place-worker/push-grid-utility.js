@@ -19,7 +19,7 @@ async function pushGridToWorker(options = {}) {
     gridFile = DEFAULT_GRID_FILE,
     batchSize = BATCH_SIZE,
     batchDelay = BATCH_DELAY,
-    dryRun = false
+    dryRun = false,
   } = options;
 
   console.log('🚀 Grid Push Utility');
@@ -48,7 +48,9 @@ async function pushGridToWorker(options = {}) {
     process.exit(1);
   }
 
-  console.log(`📊 Grid dimensions: ${gridData.length}x${gridData[0]?.length || 0}`);
+  console.log(
+    `📊 Grid dimensions: ${gridData.length}x${gridData[0]?.length || 0}`,
+  );
 
   console.log('🎨 Analyzing pixels...');
   const updates = [];
@@ -104,7 +106,9 @@ async function pushGridToWorker(options = {}) {
     const batch = updates.slice(i, i + batchSize);
     const batchNum = Math.floor(i / batchSize) + 1;
 
-    console.log(`📦 Processing batch ${batchNum}/${totalBatches} (${batch.length} pixels)...`);
+    console.log(
+      `📦 Processing batch ${batchNum}/${totalBatches} (${batch.length} pixels)...`,
+    );
 
     const promises = batch.map(async (update) => {
       try {
@@ -119,11 +123,14 @@ async function pushGridToWorker(options = {}) {
         if (response.ok) {
           successCount++;
           return { success: true, update };
-        } else {
-          const errorText = await response.text();
-          failCount++;
-          return { success: false, update, error: `${response.status}: ${errorText}` };
         }
+        const errorText = await response.text();
+        failCount++;
+        return {
+          success: false,
+          update,
+          error: `${response.status}: ${errorText}`,
+        };
       } catch (error) {
         failCount++;
         return { success: false, update, error: error.message };
@@ -158,7 +165,9 @@ async function pushGridToWorker(options = {}) {
   console.log(`📊 Results: ${successCount} successful, ${failCount} failed`);
 
   if (failCount > 0) {
-    console.log('⚠️ Some pixels failed to update. Check worker logs or try again.');
+    console.log(
+      '⚠️ Some pixels failed to update. Check worker logs or try again.',
+    );
     process.exit(1);
   } else {
     console.log('✅ All pixels updated successfully!');
@@ -208,10 +217,10 @@ function parseArgs() {
         options.gridFile = args[++i];
         break;
       case '--batch-size':
-        options.batchSize = parseInt(args[++i], 10);
+        options.batchSize = Number.parseInt(args[++i], 10);
         break;
       case '--batch-delay':
-        options.batchDelay = parseInt(args[++i], 10);
+        options.batchDelay = Number.parseInt(args[++i], 10);
         break;
       case '--dry-run':
         options.dryRun = true;

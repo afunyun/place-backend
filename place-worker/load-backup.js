@@ -87,12 +87,11 @@ async function loadBackupGrid() {
           if (response.ok) {
             successCount++;
             return { success: true };
-          } else {
-            const error = await response.text();
-            failCount++;
-            console.log(`   ⚠️ Failed: (${update.x},${update.y}) - ${error}`);
-            return { success: false, error };
           }
+          const error = await response.text();
+          failCount++;
+          console.log(`   ⚠️ Failed: (${update.x},${update.y}) - ${error}`);
+          return { success: false, error };
         } catch (error) {
           failCount++;
           console.log(

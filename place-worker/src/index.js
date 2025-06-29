@@ -111,11 +111,14 @@ export default {
           redirect_uri,
         });
 
-        const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: tokenParams,
-        });
+        const tokenResponse = await fetch(
+          'https://discord.com/api/oauth2/token',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: tokenParams,
+          },
+        );
 
         if (!tokenResponse.ok) {
           const errorText = await tokenResponse.text();
@@ -255,7 +258,7 @@ export class GridDurableObject {
             {
               status: 401,
               headers: { 'Content-Type': 'application/json' },
-            }
+            },
           );
         }
 
@@ -267,7 +270,7 @@ export class GridDurableObject {
             {
               status: 401,
               headers: { 'Content-Type': 'application/json' },
-            }
+            },
           );
         }
 
@@ -305,7 +308,13 @@ export class GridDurableObject {
         await this.sendDiscordWebhook(x, y, color, user);
 
         // Broadcast to all WebSocket sessions (with user info)
-        this.broadcast({ type: 'pixelUpdate', x, y, color, user: { id: user.id, username: user.username } });
+        this.broadcast({
+          type: 'pixelUpdate',
+          x,
+          y,
+          color,
+          user: { id: user.id, username: user.username },
+        });
 
         return new Response(
           JSON.stringify({ message: 'Pixel updated successfully' }),
@@ -338,8 +347,8 @@ export class GridDurableObject {
 
     for (const [key, color] of pixels) {
       const [, x, y] = key.split(':');
-      const pixelX = parseInt(x);
-      const pixelY = parseInt(y);
+      const pixelX = Number.parseInt(x);
+      const pixelY = Number.parseInt(y);
 
       if (
         pixelX >= 0 &&
@@ -412,7 +421,7 @@ export class GridDurableObject {
         embeds: [
           {
             title: '🎨 New Pixel Placed!',
-            color: parseInt(color.replace('#', ''), 16),
+            color: Number.parseInt(color.replace('#', ''), 16),
             fields,
             thumbnail: {
               url: `https://singlecolorimage.com/get/${color.replace('#', '')}/100x100`,
