@@ -6,3 +6,9 @@ wrangler.*
 *.d.ts
 .json
 bun.lock
+worker-configuration.d.ts
+*.d.ts
+node_modules/
+dist/
+.deprecate/
+.wrangler/
