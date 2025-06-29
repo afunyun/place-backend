@@ -34,13 +34,14 @@ export default {
       const gridState = env.GRID_STATE.get(env.GRID_STATE.idFromName('global'));
       const response = await gridState.fetch(request.clone());
 
-      // Add CORS headers to the response
+      // Get response data and add CORS headers
+      const responseData = await response.text();
       const responseHeaders = {
         ...corsHeaders,
         'Content-Type': 'application/json',
       };
 
-      return new Response(response.body, {
+      return new Response(responseData, {
         status: response.status,
         statusText: response.statusText,
         headers: responseHeaders,
@@ -52,13 +53,14 @@ export default {
       const gridState = env.GRID_STATE.get(env.GRID_STATE.idFromName('global'));
       const response = await gridState.fetch(request.clone());
 
-      // Add CORS headers to the response
+      // Get response data and add CORS headers
+      const responseData = await response.text();
       const responseHeaders = {
         ...corsHeaders,
         'Content-Type': 'application/json',
       };
 
-      return new Response(response.body, {
+      return new Response(responseData, {
         status: response.status,
         statusText: response.statusText,
         headers: responseHeaders,
@@ -80,7 +82,7 @@ export default {
           );
         }
 
-        // Get Discord client secret from Secrets Store
+        // Get Discord client secret from environment
         if (!env.DISCORD_CLIENT_SECRET) {
           return new Response(
             JSON.stringify({ message: 'Discord client secret not configured' }),
@@ -91,21 +93,10 @@ export default {
           );
         }
 
-        const discordClientSecret = await env.DISCORD_CLIENT_SECRET.get();
-        if (!discordClientSecret) {
-          return new Response(
-            JSON.stringify({ message: 'Discord client secret not found' }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            },
-          );
-        }
-
         // Exchange code for access token
         const tokenParams = new URLSearchParams({
           client_id: env.DISCORD_CLIENT_ID,
-          client_secret: discordClientSecret,
+          client_secret: env.DISCORD_CLIENT_SECRET,
           grant_type: 'authorization_code',
           code,
           redirect_uri,

@@ -18,7 +18,9 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["GridDurableObject"]
+      "new_sqlite_classes": [
+        "GridDurableObject"
+      ]
     }
   ],
   "assets": {

@@ -71,9 +71,136 @@ const INDEX = Object.fromEntries(PALETTE.map((c, i) => [c, i]));
 
 const app = new Hono();
 
+// CORS headers for all responses
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// Handle CORS preflight requests
+app.options("*", () => {
+  return new Response(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+});
+
 // Add endpoint to get the palette
 app.get("/palette", (c) => {
   return c.json({ palette: PALETTE });
+});
+
+// Route: POST /auth/discord - Discord OAuth token exchange
+app.post("/auth/discord", async (c) => {
+  try {
+    const { code, redirect_uri } = await c.req.json();
+
+    if (!code) {
+      return c.json(
+        { message: "Missing authorization code" },
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
+
+    // Get Discord client secret from environment
+    if (!c.env.DISCORD_CLIENT_SECRET) {
+      return c.json(
+        { message: "Discord client secret not configured" },
+        {
+          status: 500,
+          headers: corsHeaders,
+        },
+      );
+    }
+
+    const discordClientSecret = await c.env.DISCORD_CLIENT_SECRET.get();
+    if (!discordClientSecret) {
+      return c.json(
+        { message: "Discord client secret not found" },
+        {
+          status: 500,
+          headers: corsHeaders,
+        },
+      );
+    }
+
+    // Exchange code for access token
+    const tokenParams = new URLSearchParams({
+      client_id: c.env.DISCORD_CLIENT_ID || "1388712213002457118",
+      client_secret: discordClientSecret,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri,
+    });
+
+    const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenParams,
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error("Discord token exchange failed:", errorText);
+      return c.json(
+        { message: "Token exchange failed" },
+        {
+          status: 502,
+          headers: corsHeaders,
+        },
+      );
+    }
+
+    const tokenData = await tokenResponse.json();
+
+    // Get user profile
+    const userResponse = await fetch("https://discord.com/api/users/@me", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    if (!userResponse.ok) {
+      const errorText = await userResponse.text();
+      console.error("Discord user fetch failed:", errorText);
+      return c.json(
+        { message: "User fetch failed" },
+        {
+          status: 502,
+          headers: corsHeaders,
+        },
+      );
+    }
+
+    const userData = await userResponse.json();
+
+    return c.json(
+      {
+        access_token: tokenData.access_token,
+        user: {
+          id: userData.id,
+          username: userData.username,
+          discriminator: userData.discriminator,
+          avatar: userData.avatar,
+        },
+      },
+      {
+        status: 200,
+        headers: corsHeaders,
+      },
+    );
+  } catch (error) {
+    console.error("Discord OAuth error:", error);
+    return c.json(
+      { message: "Internal server error" },
+      {
+        status: 500,
+        headers: corsHeaders,
+      },
+    );
+  }
 });
 
 ["/grid", "/pixel", "/ws"].forEach((p) =>
@@ -83,11 +210,8 @@ app.get("/palette", (c) => {
   }),
 );
 
-app.get("/callback", async (c) => {
-  return c.env.ASSETS.fetch(new Request("https://dummy.host/callback.html"));
-});
-
 app.get("*", async (c) => {
+  // Forward static file requests to the assets binding
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
