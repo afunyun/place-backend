@@ -10,7 +10,7 @@ const GRID_HEIGHT = 500;
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 /**
@@ -63,6 +63,118 @@ export default {
         statusText: response.statusText,
         headers: responseHeaders,
       });
+    }
+
+    // Route: POST /auth/discord - Discord OAuth token exchange
+    if (url.pathname === '/auth/discord' && request.method === 'POST') {
+      try {
+        const { code, redirect_uri } = await request.json();
+
+        if (!code) {
+          return new Response(
+            JSON.stringify({ message: 'Missing authorization code' }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
+        // Get Discord client secret from Secrets Store
+        if (!env.DISCORD_CLIENT_SECRET) {
+          return new Response(
+            JSON.stringify({ message: 'Discord client secret not configured' }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
+        const discordClientSecret = await env.DISCORD_CLIENT_SECRET.get();
+        if (!discordClientSecret) {
+          return new Response(
+            JSON.stringify({ message: 'Discord client secret not found' }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
+        // Exchange code for access token
+        const tokenParams = new URLSearchParams({
+          client_id: env.DISCORD_CLIENT_ID,
+          client_secret: discordClientSecret,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri,
+        });
+
+        const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: tokenParams,
+        });
+
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('Discord token exchange failed:', errorText);
+          return new Response(
+            JSON.stringify({ message: 'Token exchange failed' }),
+            {
+              status: 502,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
+        const tokenData = await tokenResponse.json();
+
+        // Get user profile
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+
+        if (!userResponse.ok) {
+          const errorText = await userResponse.text();
+          console.error('Discord user fetch failed:', errorText);
+          return new Response(
+            JSON.stringify({ message: 'User fetch failed' }),
+            {
+              status: 502,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
+        const userData = await userResponse.json();
+
+        return new Response(
+          JSON.stringify({
+            access_token: tokenData.access_token,
+            user: {
+              id: userData.id,
+              username: userData.username,
+              discriminator: userData.discriminator,
+              avatar: userData.avatar,
+            },
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      } catch (error) {
+        console.error('Discord OAuth error:', error);
+        return new Response(
+          JSON.stringify({ message: 'Internal server error' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      }
     }
 
     // Route: Root path - serve static assets or basic info
@@ -135,6 +247,30 @@ export class GridDurableObject {
     // Handle POST /pixel
     if (url.pathname === '/pixel' && request.method === 'POST') {
       try {
+        // Check for authentication
+        const token = extractBearerToken(request);
+        if (!token) {
+          return new Response(
+            JSON.stringify({ message: 'Authentication required' }),
+            {
+              status: 401,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          );
+        }
+
+        // Validate Discord token
+        const user = await validateDiscordToken(token);
+        if (!user) {
+          return new Response(
+            JSON.stringify({ message: 'Invalid or expired token' }),
+            {
+              status: 401,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          );
+        }
+
         const { x, y, color } = await request.json();
 
         // Validate input
@@ -165,11 +301,11 @@ export class GridDurableObject {
         // Save to durable storage
         await this.state.storage.put(`pixel:${x}:${y}`, color);
 
-        // Send Discord webhook notification
-        await this.sendDiscordWebhook(x, y, color);
+        // Send Discord webhook notification (with user info)
+        await this.sendDiscordWebhook(x, y, color, user);
 
-        // Broadcast to all WebSocket sessions
-        this.broadcast({ type: 'pixelUpdate', x, y, color });
+        // Broadcast to all WebSocket sessions (with user info)
+        this.broadcast({ type: 'pixelUpdate', x, y, color, user: { id: user.id, username: user.username } });
 
         return new Response(
           JSON.stringify({ message: 'Pixel updated successfully' }),
@@ -238,11 +374,38 @@ export class GridDurableObject {
     });
   }
 
-  async sendDiscordWebhook(x, y, color) {
+  async sendDiscordWebhook(x, y, color, user = null) {
     try {
       if (!this.env.DISCORD_WEBHOOK_URL) {
         console.log('Discord webhook URL not configured');
         return;
+      }
+
+      const fields = [
+        {
+          name: 'Position',
+          value: `(${x}, ${y})`,
+          inline: true,
+        },
+        {
+          name: 'Color',
+          value: color.toUpperCase(),
+          inline: true,
+        },
+        {
+          name: 'Timestamp',
+          value: new Date().toISOString(),
+          inline: true,
+        },
+      ];
+
+      // Add user information if available
+      if (user) {
+        fields.push({
+          name: 'User',
+          value: `${user.username}#${user.discriminator || '0000'}`,
+          inline: true,
+        });
       }
 
       const webhookPayload = {
@@ -250,23 +413,7 @@ export class GridDurableObject {
           {
             title: '🎨 New Pixel Placed!',
             color: parseInt(color.replace('#', ''), 16),
-            fields: [
-              {
-                name: 'Position',
-                value: `(${x}, ${y})`,
-                inline: true,
-              },
-              {
-                name: 'Color',
-                value: color.toUpperCase(),
-                inline: true,
-              },
-              {
-                name: 'Timestamp',
-                value: new Date().toISOString(),
-                inline: true,
-              },
-            ],
+            fields,
             thumbnail: {
               url: `https://singlecolorimage.com/get/${color.replace('#', '')}/100x100`,
             },
@@ -313,4 +460,39 @@ export class GridDurableObject {
       this.sessions.delete(session);
     }
   }
+}
+
+/**
+ * Helper function to validate Discord access token
+ * @param {string} token - Discord access token
+ * @returns {Promise<object|null>} User data if valid, null if invalid
+ */
+async function validateDiscordToken(token) {
+  try {
+    const response = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return null;
+  }
+}
+
+/**
+ * Helper function to extract Bearer token from Authorization header
+ * @param {Request} request - The request object
+ * @returns {string|null} The token if found, null otherwise
+ */
+function extractBearerToken(request) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  return authHeader.substring(7); // Remove 'Bearer ' prefix
 }
