@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	let grid = [];
 	const selectedPixel = { x: null, y: null };
 
-	let CONNECTION_TIMEOUT_MS = 15000;
+	const CONNECTION_TIMEOUT_MS = 15000;
 	let socket = null;
 	let reconnectAttempts = 0;
 	const MAX_RECONNECT_ATTEMPTS = 5;
