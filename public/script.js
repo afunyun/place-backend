@@ -155,63 +155,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	async function getGrid() {
 		return new Promise(async (resolve, reject) => {
-			// timeout
 			const timeoutId = setTimeout(() => {
 				reject(new Error("Connection timeout - server may be unavailable"));
 			}, CONNECTION_TIMEOUT_MS);
-			// TEST FIX - IS THE NIGHTMARE OVER???
+
 			try {
-				// 1. Retrieve the current color palette
-				const paletteRes = await fetch(`${BACKEND_URL}/palette`);
-				if (!paletteRes.ok) {
-					throw new Error(`Palette fetch failed: ${paletteRes.status}`);
-				}
-				const { palette } = await paletteRes.json();
-				if (!Array.isArray(palette) || palette.length === 0) {
-					throw new Error("Invalid palette received from server");
-				}
+				const response = await fetch(`${BACKEND_URL}/grid`);
 
-				// 2. Fetch the RLE-encoded grid data (binary)
-				const gridRes = await fetch(`${BACKEND_URL}/grid`);
-				if (!gridRes.ok) {
-					throw new Error(`Grid fetch failed: ${gridRes.status}`);
-				}
-
-				// We can clear the timeout once both fetches have succeeded
 				clearTimeout(timeoutId);
 
-				const rleData = new Uint8Array(await gridRes.arrayBuffer());
-
-				// 3. Decode RLE into a flat array of colour indices
-				const flatSize = GRID_WIDTH * GRID_HEIGHT;
-				const flat = new Uint8Array(flatSize);
-
-				let rlePos = 0; // position within rleData
-				let flatPos = 0; // position within flat
-				while (rlePos < rleData.length && flatPos < flatSize) {
-					const runLen = rleData[rlePos++];
-					const colourIdx = rleData[rlePos++];
-					flat.fill(colourIdx, flatPos, flatPos + runLen);
-					flatPos += runLen;
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 
-				if (flatPos !== flatSize) {
-					throw new Error("Decoded grid size mismatch");
-				}
-
-				// 4. Expand flat indices to a 2-D grid of hex colours using the palette
-				const grid = Array.from({ length: GRID_HEIGHT }, (_, y) => {
-					const row = new Array(GRID_WIDTH);
-					for (let x = 0; x < GRID_WIDTH; x++) {
-						row[x] = palette[flat[y * GRID_WIDTH + x]];
-					}
-					return row;
-				});
-
-				console.log("Initial grid fetched and decoded successfully.");
-				resolve(grid);
+				const data = await response.json();
+				console.log("Initial grid fetched successfully.");
+				resolve(data);
 			} catch (error) {
 				clearTimeout(timeoutId);
+
 				console.error("Error fetching grid:", error);
 				reject(error);
 			}
