@@ -1,9 +1,9 @@
 module.exports = {
-  purge: [
+  content: [
     './public/**/*.html',
     './public/**/*.js',
   ],
-  darkMode: 'class', // or 'media' or 'class'
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -34,16 +34,5 @@ module.exports = {
       }
     },
   },
-  variants: {
-    extend: {},
-  },
   plugins: [],
-} ,
-{
-    "scripts": {
-      "build:css": "tailwindcss -i ./src/input.css -o ./public/styles.css --minify",
-      "build": "npm run build:css && mkdir -p dist && cp -r public/* dist/",
-      "dev": "tailwindcss -i ./src/input.css -o ./public/styles.css --watch",
-      "deploy": "npm run build && wrangler pages deploy dist --project-name neuro-place"
-    }
 }
