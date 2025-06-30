@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-	// Initialize theme toggle button as early as possible
 	const earlyThemeToggleBtn = document.getElementById("themeToggleBtn");
 	if (earlyThemeToggleBtn) {
 		console.log("Found theme toggle button early");
@@ -17,8 +16,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	const WEBSOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 	const OAUTH_CLIENT_ID = "1388712213002457118";
 
-	// OAuth redirect URI uses current origin so Discord can redirect back to the frontend
-	// The frontend /callback then posts to the worker at /auth/discord
 	const OAUTH_REDIRECT_URI = `${window.location.origin}/callback`;
 
 	const PIXEL_SIZE = 10;
@@ -134,20 +131,16 @@ document.addEventListener("DOMContentLoaded", () => {
 		return [r, g, b, 255];
 	}
 
-	// Convert RGB color to hex format
 	function rgbToHex(rgb) {
-		// If rgb is already a hex string, return it
 		if (typeof rgb === "string" && rgb.startsWith("#")) {
 			return rgb;
 		}
 
-		// If rgb is an array [r,g,b] or [r,g,b,a]
 		if (Array.isArray(rgb)) {
 			const [r, g, b] = rgb;
 			return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 		}
 
-		// If rgb is a string like "rgb(r,g,b)" or "rgba(r,g,b,a)"
 		if (
 			typeof rgb === "string" &&
 			(rgb.startsWith("rgb(") || rgb.startsWith("rgba("))
@@ -157,13 +150,11 @@ document.addEventListener("DOMContentLoaded", () => {
 			return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 		}
 
-		// Default fallback
 		return "#000000";
 	}
 
 	async function getGrid() {
 		return new Promise(async (resolve, reject) => {
-			// Set up timeout for connection failure
 			const timeoutId = setTimeout(() => {
 				reject(new Error("Connection timeout - server may be unavailable"));
 			}, CONNECTION_TIMEOUT_MS);
@@ -171,7 +162,6 @@ document.addEventListener("DOMContentLoaded", () => {
 			try {
 				const response = await fetch(`${BACKEND_URL}/grid`);
 
-				// Clear timeout on successful response
 				clearTimeout(timeoutId);
 
 				if (!response.ok) {
@@ -182,10 +172,8 @@ document.addEventListener("DOMContentLoaded", () => {
 				console.log("Initial grid fetched successfully.");
 				resolve(data);
 			} catch (error) {
-				// Clear timeout to prevent double error handling
 				clearTimeout(timeoutId);
 
-				// Only reject with the actual error, don't show alert here
 				console.error("Error fetching grid:", error);
 				reject(error);
 			}
@@ -232,7 +220,6 @@ document.addEventListener("DOMContentLoaded", () => {
 			return;
 		}
 
-		// Calculate the exact pixel position
 		const pixelX = x * PIXEL_SIZE;
 		const pixelY = y * PIXEL_SIZE;
 
@@ -260,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		ctx.save();
 
-		// Ensure we're using integer pixel values for the translation to avoid blurriness
 		const intOffsetX = Math.round(offsetX);
 		const intOffsetY = Math.round(offsetY);
 
@@ -271,7 +257,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		ctx.restore();
 
-		// Draw highlight on separate canvas
 		drawHighlight();
 	}
 
@@ -281,7 +266,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		if (selectedPixel.x !== null && selectedPixel.y !== null) {
 			highlightCtx.save();
 
-			// Use the same integer offsets as in drawGrid
 			const intOffsetX = Math.round(offsetX);
 			const intOffsetY = Math.round(offsetY);
 
@@ -344,7 +328,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	function initiateDiscordOAuth() {
 		const scopes = "identify+email";
-		// correct parameter order: client_id, response_type, redirect_uri, scope
 		const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${OAUTH_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&scope=${scopes}`;
 		window.location.href = oauthUrl;
 	}
@@ -465,9 +448,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		const logEntry = document.createElement("div");
 		logEntry.className = "log-entry";
-		let finalContentHTML = ""; // This will hold the full HTML with colors
+		let finalContentHTML = "";
 
-		// --- YOUR LOGIC TO DETERMINE finalContentHTML ---
 		if (typeof y === "number" && typeof x === "number") {
 			finalContentHTML = `<span style="color: #00ff00">${x}</span><span style="color: #00ff00">,</span> <span style="color: #00ff00">${y}</span> updated`;
 		} else if (
@@ -480,87 +462,69 @@ document.addEventListener("DOMContentLoaded", () => {
 		} else {
 			finalContentHTML = `<span style="color: #00ff00">${x}</span><span style="color: #00ff00">,</span> <span style="color: #00ff00">${y}</span> updated`;
 		}
-		// --- END YOUR LOGIC ---
 
-		// The actual text content will be built incrementally within the 'typed-container'
 		logEntry.innerHTML = `
         <i class="fa-solid fa-circle" style="font-size:10px; margin-right: 10px; margin-left: 6px; color: ${color}; font-weight: bold;"></i>
         <span class="typing-target"></span>
     `;
 
 		pixelChatLog.appendChild(logEntry);
-		pixelChatLog.scrollTop = pixelChatLog.scrollHeight; // Scroll to show the new entry immediately
+		pixelChatLog.scrollTop = pixelChatLog.scrollHeight;
 
-		// Get the element where the typing will occur
+
 		const typingTargetElement = logEntry.querySelector(".typing-target");
 		if (!typingTargetElement) {
 			console.error("Typing target element not found.");
 			return;
 		}
 
-		// --- Typing Logic Adapted from CodePen ---
 		let i = 0;
-		let isTag = false; // Flag to indicate if we are inside an HTML tag
-		const typingSpeed = 60; // Adjust this speed as needed (CodePen uses 60ms)
-		const originalText = finalContentHTML; // The full HTML string to type
+		let isTag = false;
+		const typingSpeed = 60;
+		const originalText = finalContentHTML;
 
 		function type() {
-			// Get the current substring to display
 			const text = originalText.slice(0, ++i);
 
-			// If all text is typed, stop the animation
 			if (text === originalText) {
-				typingTargetElement.innerHTML = text; // Ensure final content is set without cursor
-				pixelChatLog.scrollTop = pixelChatLog.scrollHeight; // Final scroll
+				typingTargetElement.innerHTML = text;
+				pixelChatLog.scrollTop = pixelChatLog.scrollHeight;
 				return;
 			}
 
-			// Check if the last character is '<' (start of tag) or '>' (end of tag)
 			const char = text.slice(-1);
 			if (char === "<") isTag = true;
 			if (char === ">") isTag = false;
 
-			// Update the element's HTML with the current text and the blinking cursor
-			// The cursor should always be at the end of the visible text
 			typingTargetElement.innerHTML = `${text}<span class='blinker'>&#32;</span>`;
 
-			// If currently inside a tag, call type() immediately without delay
 			if (isTag) {
-				type(); // No setTimeout, just call itself to quickly append the rest of the tag
+				type();
 			} else {
-				// Otherwise, set a timeout for the next character
+
 				setTimeout(type, typingSpeed);
 			}
 
-			// Optional: Scroll during typing if the content is long, but can be jumpy
-			// pixelChatLog.scrollTop = pixelChatLog.scrollHeight;
 		}
 
-		// Start the typing animation
 		type();
 	}
 
 	function getGridCoordsFromScreen(clientX, clientY) {
-		// Use the bounding rectangle of the canvas itself for the most accurate calculation
 		const rect = canvas.getBoundingClientRect();
 
-		// Calculate the position within the canvas element
 		const canvasX = clientX - rect.left;
 		const canvasY = clientY - rect.top;
 
-		// Apply the inverse of the canvas transformation to get world coordinates
-		// Use the same integer offsets as in drawGrid for consistency
 		const intOffsetX = Math.round(offsetX);
 		const intOffsetY = Math.round(offsetY);
 
 		const worldX = (canvasX - intOffsetX) / scale;
 		const worldY = (canvasY - intOffsetY) / scale;
 
-		// Convert world coordinates to grid coordinates
 		const gridX = Math.floor(worldX / PIXEL_SIZE);
 		const gridY = Math.floor(worldY / PIXEL_SIZE);
 
-		// Check if the grid coordinates are within bounds
 		if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
 			return { x: gridX, y: gridY };
 		}
@@ -575,18 +539,15 @@ document.addEventListener("DOMContentLoaded", () => {
 				`Click resolved to grid coordinates: (${gridCoords.x}, ${gridCoords.y})`,
 			);
 
-			// Check if the selection has changed
 			if (
 				selectedPixel.x !== gridCoords.x ||
 				selectedPixel.y !== gridCoords.y
 			) {
-				// Selection changed
 			}
 
 			selectedPixel.x = gridCoords.x;
 			selectedPixel.y = gridCoords.y;
 
-			// Update color picker to show the current color at this position
 			const index = gridCoords.y * GRID_WIDTH + gridCoords.x;
 			const currentColor = grid[index];
 
@@ -596,24 +557,18 @@ document.addEventListener("DOMContentLoaded", () => {
 				document.getElementById("colorPickerText").textContent = hexColor;
 			}
 
-			// Update the selected coordinates display
 			updateSelectedCoordsDisplay();
 
-			// Redraw to show the highlight
 			drawHighlight();
 		} else {
-			// Click was outside the grid
 			if (selectedPixel.x !== null) {
-				// Selection was cleared
 			}
 
 			selectedPixel.x = null;
 			selectedPixel.y = null;
 
-			// Update the selected coordinates display
 			updateSelectedCoordsDisplay();
 
-			// Redraw to clear the highlight
 			drawHighlight();
 		}
 	}
@@ -621,7 +576,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	function handleMouseDown(event) {
 		isDragging = true;
 
-		// Store the exact client coordinates
 		lastMouseX = event.clientX;
 		lastMouseY = event.clientY;
 		lastClickX = event.clientX;
@@ -655,7 +609,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		const dy = event.clientY - lastClickY;
 
 		if (Math.abs(dx) < CLICK_THRESHOLD && Math.abs(dy) < CLICK_THRESHOLD) {
-			// Use the current mouse position for better accuracy
 			handleUserInteractionClick({
 				clientX: event.clientX,
 				clientY: event.clientY,
@@ -893,7 +846,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		return new Promise((resolve, reject) => {
 			isConnecting = true;
 
-			// Set up connection timeout
 			connectionTimeoutId = setTimeout(() => {
 				if (isConnecting) {
 					isConnecting = false;
@@ -907,7 +859,6 @@ document.addEventListener("DOMContentLoaded", () => {
 				socket = new WebSocket(WEBSOCKET_URL);
 
 				socket.onopen = () => {
-					// Clear timeout on successful connection
 					if (connectionTimeoutId) {
 						clearTimeout(connectionTimeoutId);
 						connectionTimeoutId = null;
@@ -963,7 +914,6 @@ document.addEventListener("DOMContentLoaded", () => {
 				};
 
 				socket.onclose = (event) => {
-					// Clear timeout if connection was established but then closed
 					if (connectionTimeoutId) {
 						clearTimeout(connectionTimeoutId);
 						connectionTimeoutId = null;
@@ -984,7 +934,6 @@ document.addEventListener("DOMContentLoaded", () => {
 						);
 					} else {
 						reconnectButton.style.display = "inline-block";
-						// Only show alert after multiple failed attempts, not on initial connection
 						if (reconnectAttempts > 0) {
 							alert("Connection lost. Please click reconnect to retry.");
 						}
@@ -992,7 +941,6 @@ document.addEventListener("DOMContentLoaded", () => {
 				};
 
 				socket.onerror = (error) => {
-					// Clear timeout on error
 					if (connectionTimeoutId) {
 						clearTimeout(connectionTimeoutId);
 						connectionTimeoutId = null;
@@ -1004,7 +952,6 @@ document.addEventListener("DOMContentLoaded", () => {
 					reject(error);
 				};
 			} catch (error) {
-				// Clear timeout on exception
 				if (connectionTimeoutId) {
 					clearTimeout(connectionTimeoutId);
 					connectionTimeoutId = null;
@@ -1025,12 +972,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	async function connectAndLoadGrid() {
 		try {
-			// First, try to load the grid data
 			console.log("Attempting to load grid data...");
 			grid = await getGrid();
 			console.log("Grid data loaded successfully");
 
-			// Then establish WebSocket connection
 			console.log("Attempting to establish WebSocket connection...");
 			await connectWebSocket();
 			console.log("WebSocket connection established successfully");
@@ -1039,16 +984,42 @@ document.addEventListener("DOMContentLoaded", () => {
 		} catch (error) {
 			console.error("Connection failed:", error);
 
-			// Show user-friendly error message based on error type
-			if (error.message.includes("timeout")) {
-				alert("Failed to connect to server – please check your network connection and ensure the server is running.");
-			} else if (error.message.includes("HTTP error")) {
-				alert("Server responded with an error. Please try refreshing the page.");
-			} else {
-				alert("Failed to connect to server. Please check that the backend is running and try again.");
+			function showToast(message) {
+				let toast = document.getElementById("connection-toast");
+				if (!toast) {
+					toast = document.createElement("dialog");
+					toast.id = "connection-toast";
+					toast.style.position = "fixed";
+					toast.style.bottom = "2rem";
+					toast.style.left = "50%";
+					toast.style.transform = "translateX(-50%)";
+					toast.style.background = "#222";
+					toast.style.color = "#fff";
+					toast.style.border = "none";
+					toast.style.borderRadius = "8px";
+					toast.style.padding = "1rem 2rem";
+					toast.style.boxShadow = "0 2px 12px rgba(0,0,0,0.2)";
+					toast.style.zIndex = "9999";
+					toast.style.fontSize = "1rem";
+					toast.setAttribute("open", "");
+					document.body.appendChild(toast);
+				}
+				toast.textContent = message;
+				if (!toast.open) toast.show();
+				clearTimeout(toast._timeoutId);
+				toast._timeoutId = setTimeout(() => {
+					toast.close();
+				}, 4000);
 			}
 
-			// Provide fallback grid if HTTP request failed
+			if (error.message.includes("timeout")) {
+				showToast("Connection issue: Failed to connect to server – please check your network connection and ensure the server is running.");
+			} else if (error.message.includes("HTTP error")) {
+				showToast("Connection issue: Server responded with an error. Please try refreshing the page.");
+			} else {
+				showToast("Connection issue: Failed to connect to server. Please check that the backend is running and try again.");
+			}
+
 			if (!grid || grid.length === 0) {
 				console.log("Using fallback grid due to connection failure");
 				grid = Array(GRID_HEIGHT)
@@ -1056,7 +1027,6 @@ document.addEventListener("DOMContentLoaded", () => {
 					.map(() => Array(GRID_WIDTH).fill("#1a1a1a"));
 			}
 
-			// Show reconnect button for manual retry
 			if (window.reconnectButton) {
 				window.reconnectButton.style.display = "inline-block";
 			}
@@ -1065,10 +1035,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 	}
 
-	function setupWebSocket() {
-		// This function is kept for backward compatibility but now just calls connectWebSocket
-		return connectWebSocket();
-	}
 
 	function isCooldownActive() {
 		if (!enforceCooldown) return false;
@@ -1200,11 +1166,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 		liveViewCtx.imageSmoothingEnabled = false;
 
-		// Use coordinated connection and grid loading
 		const connectionSuccess = await connectAndLoadGrid();
 
-		// Continue with UI setup regardless of connection status
-		// (fallback grid will be used if connection failed)
 		drawFullOffscreenGrid(grid);
 
 		const gridPixelWidth = GRID_WIDTH * PIXEL_SIZE;
