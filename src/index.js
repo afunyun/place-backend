@@ -173,8 +173,7 @@ export class GridDurableObject {
       return new Response(null, { status: 101, webSocket: client });
     }
     if (url.pathname === "/grid" && request.method === "GET") {
-      // IMPROVEMENT: Use Run-Length Encoding (RLE) for efficient grid transfer.
-      // This is much smaller than sending a giant JSON array.
+      // RLE//Uint8Array w/ palette as key
       const flat = new Uint8Array(500 * 500);
       let k = 0;
       for (let y = 0; y < 500; y++)
