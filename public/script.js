@@ -166,6 +166,9 @@ async function getGrid() {
 				if (!paletteRes.ok) {
 					throw new Error(`Palette fetch failed: ${paletteRes.status}`);
 				}
+				else {
+					console.log("Palette fetched successfully.");
+				}
 				const { palette } = await paletteRes.json();
 				if (!Array.isArray(palette) || palette.length === 0) {
 					throw new Error("Invalid palette received from server");
@@ -176,7 +179,9 @@ async function getGrid() {
 				if (!gridRes.ok) {
 					throw new Error(`Grid fetch failed: ${gridRes.status}`);
 				}
-
+				else {
+					console.log("Grid fetched successfully.");
+				}
 				// We can clear the timeout once both fetches have succeeded
 				clearTimeout(timeoutId);
 
@@ -197,6 +202,9 @@ async function getGrid() {
 
 				if (flatPos !== flatSize) {
 					throw new Error("Decoded grid size mismatch");
+				}
+				else {
+					console.log("Grid decoded successfully.");
 				}
 
 				// 4. Expand flat indices to a 2-D grid of hex colours using the palette

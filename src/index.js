@@ -20,12 +20,9 @@ const cors = (c, next) => {
 
 app.use("*", cors);
 
-// The palette is no longer hardcoded. It's fetched from a KV namespace.
-// This endpoint allows the frontend to retrieve the color palette.
+
 app.get("/palette", async (c) => {
   try {
-    // PALETTE_KV is a binding to a Cloudflare KV Namespace.
-    // 'colors' is the key where the palette array is stored as a JSON string.
     const paletteJson = await c.env.PALETTE_KV.get("colors");
     if (!paletteJson) {
       return c.json({ message: "Palette not configured in PALETTE_KV" }, 500);
@@ -38,7 +35,6 @@ app.get("/palette", async (c) => {
   }
 });
 
-// Route: POST /auth/discord - Discord OAuth token exchange (unchanged)
 app.post("/auth/discord", async (c) => {
   try {
     const { code, redirect_uri } = await c.req.json();
@@ -79,12 +75,9 @@ app.post("/auth/discord", async (c) => {
   }
 });
 
-// Normalizing routes for grid-related paths
 app.all(/grid.*/, (c) => c.redirect("/grid", 301));
 app.all(/pixel.*/, (c) => c.redirect("/pixel", 301));
 app.all(/ws.*/, (c) => c.redirect("/ws", 301));
-
-// Forward all grid-related, real-time, and asset requests to the Durable Object or Assets binding
 ["/grid", "/pixel", "/ws", "/batch-update"].forEach((p) =>
   app.all(p, (c) => {
     const stub = c.env.GRID_STATE.get(c.env.GRID_STATE.idFromName("global"));
