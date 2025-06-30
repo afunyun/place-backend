@@ -853,34 +853,31 @@
 					<input type="color" id="colorPicker" value="#6366f1">
 				</div>
 			</div>
+		</div>
 
-			<div class="coords-display" id="selectedCoords">
-				No pixel selected
-			</div>
-
-			<div class="control-group">
-				<button id="zoomOutBtn" class="btn btn-secondary btn-icon" title="Zoom out">
-					<span class="material-icons-round">zoom_out</span>
-				</button>
-				<button id="zoomInBtn" class="btn btn-secondary btn-icon" title="Zoom in">
-					<span class="material-icons-round">zoom_in</span>
-				</button>
-			</div>
-
-			<button id="placePixelBtn" class="btn btn-primary">
-				<span class="material-icons-round" style="font-size: 1.125rem;">add</span>
-				Place Pixel
+		<div class="control-group">
+			<button id="zoomOutBtn" class="btn btn-secondary btn-icon" title="Zoom out">
+				<span class="material-icons-round">zoom_out</span>
 			</button>
-
-			<!-- THIS IS THE CHANGE: This div consumes all available space, pushing the avatar to the right -->
-			<div style="flex: 1;"></div>
-
-			<!-- Right Group: Avatar Button (Settings) -->
-			<!-- Removed ml-auto and float: right -->
-			<button id="openSettingsBtn"
-				class="w-8 h-8 rounded-full flex items-center justify-center p-0 overflow-hidden bg-gray-500">
-				<img id="userAvatar" class="w-full h-full object-cover rounded-full" alt="User Avatar" src="user.png">
+			<button id="zoomInBtn" class="btn btn-secondary btn-icon" title="Zoom in">
+				<span class="material-icons-round">zoom_in</span>
 			</button>
+		</div>
+
+		<button id="placePixelBtn" class="btn btn-primary">
+			<span class="material-icons-round" style="font-size: 1.125rem;">add</span>
+			Place Pixel
+		</button>
+
+		<!-- THIS IS THE CHANGE: This div consumes all available space, pushing the avatar to the right -->
+		<div style="flex: 1;"></div>
+
+		<!-- Right Group: Avatar Button (Settings) -->
+		<!-- Removed ml-auto and float: right -->
+		<button id="openSettingsBtn"
+			class="w-8 h-8 rounded-full flex items-center justify-center p-0 overflow-hidden bg-gray-500">
+			<img id="userAvatar" class="w-full h-full object-cover rounded-full" alt="User Avatar" src="user.png">
+		</button>
 		</div>
 
 

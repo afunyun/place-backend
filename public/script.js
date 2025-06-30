@@ -12,8 +12,12 @@ document.addEventListener("DOMContentLoaded", () => {
 		console.log("Theme toggle button not found early");
 	}
 
-	const BACKEND_URL = window.location.origin;
-	const WEBSOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+	const BACKEND_URL =
+		window.BACKEND_URL_OVERRIDE ||
+		localStorage.getItem("backend_url") ||
+		window.location.origin;
+	const backendUrlObj = new URL(BACKEND_URL);
+	const WEBSOCKET_URL = `${backendUrlObj.protocol === "https:" ? "wss:" : "ws:"}//${backendUrlObj.host}/ws`;
 	const OAUTH_CLIENT_ID = "1388712213002457118";
 
 	const OAUTH_REDIRECT_URI = `${window.location.origin}/callback`;
@@ -153,81 +157,109 @@ document.addEventListener("DOMContentLoaded", () => {
 		return "#000000";
 	}
 
-async function getGrid() {
-		return new Promise(async (resolve, reject) => {
-			// Fail-safe timeout
-			const timeoutId = setTimeout(() => {
-				reject(new Error("Connection timeout - server may be unavailable"));
-			}, CONNECTION_TIMEOUT_MS);
-
+	// Generic helper to retry transient fetch failures with exponential backoff
+	async function fetchWithRetry(
+		url,
+		options = {},
+		retries = 3,
+		initialBackoff = 500,
+	) {
+		let attempt = 0;
+		let backoff = initialBackoff;
+		while (attempt <= retries) {
 			try {
-				// 1. Retrieve the current color palette
-				const paletteRes = await fetch(`${BACKEND_URL}/palette`);
-				if (!paletteRes.ok) {
-					throw new Error(`Palette fetch failed: ${paletteRes.status}`);
-				}
-				else {
-					console.log("Palette fetched successfully.");
-				}
-				const { palette } = await paletteRes.json();
-				if (!Array.isArray(palette) || palette.length === 0) {
-					throw new Error("Invalid palette received from server");
-				}
-
-				// 2. Fetch the RLE-encoded grid data (binary)
-				const gridRes = await fetch(`${BACKEND_URL}/grid`);
-				if (!gridRes.ok) {
-					throw new Error(`Grid fetch failed: ${gridRes.status}`);
-				}
-				else {
-					console.log("Grid fetched successfully.");
-				}
-				// We can clear the timeout once both fetches have succeeded
-				clearTimeout(timeoutId);
-
-				const rleData = new Uint8Array(await gridRes.arrayBuffer());
-
-				// 3. Decode RLE into a flat array of colour indices
-				const flatSize = GRID_WIDTH * GRID_HEIGHT;
-				const flat = new Uint8Array(flatSize);
-
-				let rlePos = 0; // position within rleData
-				let flatPos = 0; // position within flat
-				while (rlePos < rleData.length && flatPos < flatSize) {
-					const runLen = rleData[rlePos++];
-					const colourIdx = rleData[rlePos++];
-					flat.fill(colourIdx, flatPos, flatPos + runLen);
-					flatPos += runLen;
-				}
-
-				if (flatPos !== flatSize) {
-					throw new Error("Decoded grid size mismatch");
-				}
-				else {
-					console.log("Grid decoded successfully.");
-				}
-
-				// 4. Expand flat indices to a 2-D grid of hex colours using the palette
-				const grid = Array.from({ length: GRID_HEIGHT }, (_, y) => {
-					const row = new Array(GRID_WIDTH);
-					for (let x = 0; x < GRID_WIDTH; x++) {
-						row[x] = palette[flat[y * GRID_WIDTH + x]];
-					}
-					return row;
-				});
-
-				console.log("Initial grid fetched and decoded successfully.");
-				resolve(grid);
-			} catch (error) {
-				clearTimeout(timeoutId);
-				console.error("Error fetching grid:", error);
-				reject(error);
+				const res = await fetch(url, options);
+				return res;
+			} catch (err) {
+				if (attempt === retries) throw err;
+				await new Promise((r) => setTimeout(r, backoff));
+				backoff *= 2;
+				attempt++;
 			}
-		});
+		}
+	}
+
+	async function getGrid() {
+		try {
+			// 1. Fetch the palette (JSON)
+			const paletteRes = await fetchWithRetry(`${BACKEND_URL}/palette`);
+			if (!paletteRes.ok) {
+				throw new Error(`Palette fetch failed: ${paletteRes.status}`);
+			}
+			console.log("Palette fetched successfully.");
+			const { palette } = await paletteRes.json();
+			if (!Array.isArray(palette) || palette.length === 0) {
+				throw new Error("Invalid palette received from server");
+			}
+
+			// 2. Fetch the RLE-encoded grid data (binary)
+			const gridRes = await fetchWithRetry(`${BACKEND_URL}/grid`);
+			if (!gridRes.ok) {
+				throw new Error(`Grid fetch failed: ${gridRes.status}`);
+			}
+			console.log("Grid fetched successfully.");
+
+			const rleData = new Uint8Array(await gridRes.arrayBuffer());
+
+			// 3. Decode RLE into a flat array of colour indices
+			const flatSize = GRID_WIDTH * GRID_HEIGHT;
+			const flat = new Uint8Array(flatSize);
+
+			let rlePos = 0; // position within rleData
+			let flatPos = 0; // position within flat
+			while (rlePos + 1 < rleData.length && flatPos < flatSize) {
+				const runLen = rleData[rlePos++];
+				const colourIdx = rleData[rlePos++];
+				
+				// Validate run length to prevent buffer overflow
+				if (runLen === 0 || flatPos + runLen > flatSize) {
+					throw new Error(`Invalid RLE run length: ${runLen} at position ${flatPos}`);
+				}
+				
+				// Validate color index
+				if (colourIdx >= palette.length) {
+					throw new Error(`Invalid color index: ${colourIdx}, palette size: ${palette.length}`);
+				}
+				
+				flat.fill(colourIdx, flatPos, flatPos + runLen);
+				flatPos += runLen;
+			}
+
+			if (flatPos !== flatSize) {
+				throw new Error("Decoded grid size mismatch");
+			}
+
+			console.log("Grid decoded successfully.");
+
+			// 4. Expand flat indices to a 2-D grid of hex colours using the palette
+			const grid = Array.from({ length: GRID_HEIGHT }, (_, y) => {
+				const row = new Array(GRID_WIDTH);
+				for (let x = 0; x < GRID_WIDTH; x++) {
+					row[x] = palette[flat[y * GRID_WIDTH + x]];
+				}
+				return row;
+			});
+
+			console.log("Initial grid fetched and decoded successfully.");
+			return grid;
+		} catch (error) {
+			console.error("Failed to get and decode grid:", error);
+			throw error;
+		}
 	}
 
 	async function placePixel(x, y, color) {
 		try {
+			// Validate coordinates
+			if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) {
+				throw new Error(`Invalid coordinates: (${x}, ${y}). Must be within 0-${GRID_WIDTH-1}, 0-${GRID_HEIGHT-1}`);
+			}
+			
+			// Validate color format
+			if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+				throw new Error(`Invalid color format: ${color}. Must be hex format #RRGGBB`);
+			}
+			
 			const headers = { "Content-Type": "application/json" };
 			if (userToken) {
 				headers.Authorization = `Bearer ${userToken}`;
@@ -517,7 +549,6 @@ async function getGrid() {
 		pixelChatLog.appendChild(logEntry);
 		pixelChatLog.scrollTop = pixelChatLog.scrollHeight;
 
-
 		const typingTargetElement = logEntry.querySelector(".typing-target");
 		if (!typingTargetElement) {
 			console.error("Typing target element not found.");
@@ -547,10 +578,8 @@ async function getGrid() {
 			if (isTag) {
 				type();
 			} else {
-
 				setTimeout(type, typingSpeed);
 			}
-
 		}
 
 		type();
@@ -755,7 +784,7 @@ async function getGrid() {
 		const touch2 = event.touches[1];
 		return Math.sqrt(
 			(touch2.clientX - touch1.clientX) ** 2 +
-			(touch2.clientY - touch1.clientY) ** 2,
+				(touch2.clientY - touch1.clientY) ** 2,
 		);
 	}
 
@@ -890,9 +919,9 @@ async function getGrid() {
 		}
 
 		return new Promise((resolve, reject) => {
-			isConnecting = true;
+			let isConnecting = true;
 
-			connectionTimeoutId = setTimeout(() => {
+			const connectionTimeoutId = setTimeout(() => {
 				if (isConnecting) {
 					isConnecting = false;
 					console.error("WebSocket connection timeout");
@@ -907,14 +936,15 @@ async function getGrid() {
 				socket.onopen = () => {
 					if (connectionTimeoutId) {
 						clearTimeout(connectionTimeoutId);
-						connectionTimeoutId = null;
 					}
 					isConnecting = false;
 
 					console.log("Connected to backend WebSocket");
 					addPixelLogEntry("System", "Connected", "#00ff00");
-					reconnectButton.style.display = "none";
-					reconnectButton.disabled = false;
+					if (window.reconnectButton) {
+						window.reconnectButton.style.display = "none";
+						window.reconnectButton.disabled = false;
+					}
 					reconnectAttempts = 0;
 					resolve();
 				};
@@ -925,6 +955,22 @@ async function getGrid() {
 
 						if (data.type === "pixelUpdate") {
 							const { x, y, color } = data;
+							
+							// Validate pixel update data
+							if (typeof x !== 'number' || typeof y !== 'number' || typeof color !== 'string') {
+								console.error('Invalid pixel update data:', data);
+								return;
+							}
+							
+							if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) {
+								console.error('Pixel coordinates out of bounds:', { x, y });
+								return;
+							}
+							
+							if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+								console.error('Invalid color format:', color);
+								return;
+							}
 
 							if (grid[y]?.[x] !== undefined) {
 								grid[y][x] = color;
@@ -962,7 +1008,6 @@ async function getGrid() {
 				socket.onclose = (event) => {
 					if (connectionTimeoutId) {
 						clearTimeout(connectionTimeoutId);
-						connectionTimeoutId = null;
 					}
 					isConnecting = false;
 
@@ -979,7 +1024,9 @@ async function getGrid() {
 							RECONNECT_DELAY * reconnectAttempts,
 						);
 					} else {
-						reconnectButton.style.display = "inline-block";
+						if (window.reconnectButton) {
+							window.reconnectButton.style.display = "inline-block";
+						}
 						if (reconnectAttempts > 0) {
 							alert("Connection lost. Please click reconnect to retry.");
 						}
@@ -989,7 +1036,6 @@ async function getGrid() {
 				socket.onerror = (error) => {
 					if (connectionTimeoutId) {
 						clearTimeout(connectionTimeoutId);
-						connectionTimeoutId = null;
 					}
 					isConnecting = false;
 
@@ -1000,7 +1046,6 @@ async function getGrid() {
 			} catch (error) {
 				if (connectionTimeoutId) {
 					clearTimeout(connectionTimeoutId);
-					connectionTimeoutId = null;
 				}
 				isConnecting = false;
 
@@ -1010,7 +1055,9 @@ async function getGrid() {
 					`Connection Error: ${error.message}`,
 					"#ff9900",
 				);
-				reconnectButton.style.display = "inline-block";
+				if (window.reconnectButton) {
+					window.reconnectButton.style.display = "inline-block";
+				}
 				reject(error);
 			}
 		});
@@ -1059,11 +1106,17 @@ async function getGrid() {
 			}
 
 			if (error.message.includes("timeout")) {
-				showToast("Connection issue: Failed to connect to server – please check your network connection and ensure the server is running.");
+				showToast(
+					"Connection issue: Failed to connect to server – please check your network connection and ensure the server is running.",
+				);
 			} else if (error.message.includes("HTTP error")) {
-				showToast("Connection issue: Server responded with an error. Please try refreshing the page.");
+				showToast(
+					"Connection issue: Server responded with an error. Please try refreshing the page.",
+				);
 			} else {
-				showToast("Connection issue: Failed to connect to server. Please check that the backend is running and try again.");
+				showToast(
+					"Connection issue: Failed to connect to server. Please check that the backend is running and try again.",
+				);
 			}
 
 			if (!grid || grid.length === 0) {
@@ -1080,7 +1133,6 @@ async function getGrid() {
 			return false;
 		}
 	}
-
 
 	function isCooldownActive() {
 		if (!enforceCooldown) return false;
@@ -1267,7 +1319,7 @@ async function getGrid() {
 					deltaY: -1,
 					clientX: rect.left + canvas.clientWidth / 2,
 					clientY: rect.top + canvas.clientHeight / 2,
-					preventDefault: () => { },
+					preventDefault: () => {},
 				});
 			});
 		}
@@ -1278,7 +1330,7 @@ async function getGrid() {
 					deltaY: 1,
 					clientX: rect.left + canvas.clientWidth / 2,
 					clientY: rect.top + canvas.clientHeight / 2,
-					preventDefault: () => { },
+					preventDefault: () => {},
 				});
 			});
 		}
